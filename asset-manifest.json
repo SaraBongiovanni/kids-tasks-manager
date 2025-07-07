@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/kids-tasks-manager/static/css/main.e6c13ad2.css",
+    "main.js": "/kids-tasks-manager/static/js/main.9b730bd1.js",
+    "static/js/453.1d058b35.chunk.js": "/kids-tasks-manager/static/js/453.1d058b35.chunk.js",
+    "index.html": "/kids-tasks-manager/index.html",
+    "main.e6c13ad2.css.map": "/kids-tasks-manager/static/css/main.e6c13ad2.css.map",
+    "main.9b730bd1.js.map": "/kids-tasks-manager/static/js/main.9b730bd1.js.map",
+    "453.1d058b35.chunk.js.map": "/kids-tasks-manager/static/js/453.1d058b35.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.9b730bd1.js"
+  ]
+}
