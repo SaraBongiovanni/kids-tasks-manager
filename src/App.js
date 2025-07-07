@@ -1,477 +1,300 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { createRoot } from "react-dom/client";
 
-const moments = ["mattino", "pomeriggio", "sera"];
-const maxChildren = 5;
+const EMOJI_TASKS = {
+  "Apparecchiare": "🍽️",
+  "Sparecchiare": "🧹",
+  "Sistemare il bucato": "🧺",
+  "Fare la lavatrice": "🧼",
+  "Dare da mangiare al gatto": "🐱",
+  "Dare da mangiare al cane": "🐶",
+  "Fare la spesa": "🛒",
+  "Vestirsi": "👕",
+  "Mettersi il pigiama": "🛌",
+  "Riordinare la cameretta": "🧸",
+  "Riordinare la sala": "🛋️",
+  "Riordinare il bagno": "🚽",
+  "Sistemare il giardino": "🌳",
+  "Stendere": "👕📌"
+};
 
-const defaultTasks = [
-  { id: 1, text: "Lavarsi i denti", emoji: "🪥" },
-  { id: 2, text: "Vestirsi", emoji: "👕" },
-  { id: 3, text: "Fare il letto", emoji: "🛏" },
-  { id: 4, text: "Apparecchiare", emoji: "🍽" },
-  { id: 5, text: "Sparecchiare", emoji: "🫑" },
-  { id: 6, text: "Riordinare la cameretta", emoji: "🏠" },
-  { id: 7, text: "Riordinare la sala", emoji: "🏡" },
-  { id: 8, text: "Riordinare il bagno", emoji: "🚽" },
-  { id: 9, text: "Fare la lavatrice", emoji: "🛃" },
-  { id: 10, text: "Sistemare il bucato", emoji: "🧵" },
-  { id: 11, text: "Sistemare il giardino", emoji: "🌿" },
-  { id: 12, text: "Mettere il pigiama", emoji: "🥯" },
-  { id: 13, text: "Fare i compiti", emoji: "📝" },
-  { id: 14, text: "Pulire il divano", emoji: "🪶" },
-  { id: 15, text: "Dare da mangiare al cane", emoji: "🐶" },
-  { id: 16, text: "Dare da mangiare al gatto", emoji: "🐱" },
-  { id: 17, text: "Sistemare il robot delle pulizie (Gigetto)", emoji: "🤖" }
-];
+const MOMENTI = ["Mattino", "Pomeriggio", "Sera"];
 
-export default function App() {
-  // Bambini: array di { id, name, emoji }
-  const [children, setChildren] = useState([
-    { id: 1, name: "Nome bambino", emoji: "👦" },
-  ]);
-
-  // Tasks assegnati: { childId: { moment: [taskString] } }
-  const [tasksByChild, setTasksByChild] = useState(() => {
-    const obj = {};
-    children.forEach((c) => {
-      obj[c.id] = {};
-      moments.forEach((m) => {
-        obj[c.id][m] = [];
-      });
-    });
-    return obj;
-  });
-
-  // Tasks completati: { childId: { moment: [taskString] } }
-  const [completedTasks, setCompletedTasks] = useState(() => {
-    const obj = {};
-    children.forEach((c) => {
-      obj[c.id] = {};
-      moments.forEach((m) => {
-        obj[c.id][m] = [];
-      });
-    });
-    return obj;
-  });
-
-  // Punti per bambino
-  const [points, setPoints] = useState(() => {
-    const saved = localStorage.getItem("points");
-    if (saved) return JSON.parse(saved);
-    const initial = {};
-    children.forEach((c) => (initial[c.id] = 0));
-    return initial;
-  });
-
-  // Momento selezionato per ogni bambino (per visualizzare i compiti)
-  const [selectedMoment, setSelectedMoment] = useState(() => {
-    const sel = {};
-    children.forEach((c) => (sel[c.id] = null));
-    return sel;
-  });
-
-  // Modalità pagina: "main" o "parent"
+function App() {
   const [page, setPage] = useState("main");
 
-  // Compiti definiti da genitore
-  const [assignedTasks, setAssignedTasks] = useState(defaultTasks);
+  // Stato iniziale per i bambini, punti e nomi/emoji
+  const [children, setChildren] = useState([
+    { name: "Bambino 1", emoji: "👧", punti: 0 },
+    { name: "Bambino 2", emoji: "👦", punti: 0 }
+  ]);
 
-  // Nuovo compito genitore
-  const [newTaskText, setNewTaskText] = useState("");
-  const [newTaskEmoji, setNewTaskEmoji] = useState("");
+  // Impegni selezionati per bambino e momento
+  const [selectedTasks, setSelectedTasks] = useState({
+    0: { Mattino: [], Pomeriggio: [], Sera: [] },
+    1: { Mattino: [], Pomeriggio: [], Sera: [] }
+  });
 
-  // --- Sincronizza stato se cambia la lista dei bambini ---
+  // Impegni completati per bambino e momento
+  const [taskCompletion, setTaskCompletion] = useState({
+    0: { Mattino: [], Pomeriggio: [], Sera: [] },
+    1: { Mattino: [], Pomeriggio: [], Sera: [] }
+  });
+
+  // --- CARICAMENTO dati da localStorage all'avvio ---
   useEffect(() => {
-    // Aggiorna tasksByChild
-    setTasksByChild((old) => {
-      const newObj = {};
-      children.forEach((c) => {
-        newObj[c.id] = {};
-        moments.forEach((m) => {
-          newObj[c.id][m] = old?.[c.id]?.[m] || [];
-        });
-      });
-      return newObj;
-    });
+    const savedChildren = localStorage.getItem("children");
+    if (savedChildren) setChildren(JSON.parse(savedChildren));
 
-    // Aggiorna completedTasks
-    setCompletedTasks((old) => {
-      const newObj = {};
-      children.forEach((c) => {
-        newObj[c.id] = {};
-        moments.forEach((m) => {
-          newObj[c.id][m] = old?.[c.id]?.[m] || [];
-        });
-      });
-      return newObj;
-    });
+    const savedSelectedTasks = localStorage.getItem("selectedTasks");
+    if (savedSelectedTasks) setSelectedTasks(JSON.parse(savedSelectedTasks));
 
-    // Aggiorna punti
-    setPoints((old) => {
-      const newPts = {};
-      children.forEach((c) => {
-        newPts[c.id] = old?.[c.id] || 0;
-      });
-      return newPts;
-    });
+    const savedTaskCompletion = localStorage.getItem("taskCompletion");
+    if (savedTaskCompletion) setTaskCompletion(JSON.parse(savedTaskCompletion));
+  }, []);
 
-    // Aggiorna momento selezionato
-    setSelectedMoment((old) => {
-      const newSel = {};
-      children.forEach((c) => {
-        newSel[c.id] = old?.[c.id] || null;
-      });
-      return newSel;
-    });
+  // --- SALVATAGGIO dati children su localStorage quando cambia ---
+  useEffect(() => {
+    localStorage.setItem("children", JSON.stringify(children));
   }, [children]);
 
-  // Salva punti su localStorage
+  // --- SALVATAGGIO dati selectedTasks su localStorage quando cambia ---
   useEffect(() => {
-    localStorage.setItem("points", JSON.stringify(points));
-  }, [points]);
+    localStorage.setItem("selectedTasks", JSON.stringify(selectedTasks));
+  }, [selectedTasks]);
 
-  // Reset automatico compiti completati e assegnati a mezzanotte
+  // --- SALVATAGGIO dati taskCompletion su localStorage quando cambia ---
   useEffect(() => {
-    const now = new Date();
-    const msToMidnight =
-      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+    localStorage.setItem("taskCompletion", JSON.stringify(taskCompletion));
+  }, [taskCompletion]);
 
-    const timer = setTimeout(() => {
-      const emptyTasks = {};
-      const emptyCompleted = {};
-      children.forEach((c) => {
-        emptyTasks[c.id] = {};
-        emptyCompleted[c.id] = {};
-        moments.forEach((m) => {
-          emptyTasks[c.id][m] = [];
-          emptyCompleted[c.id][m] = [];
-        });
-      });
-      setTasksByChild(emptyTasks);
-      setCompletedTasks(emptyCompleted);
-    }, msToMidnight);
-
-    return () => clearTimeout(timer);
-  }, [children]);
-
-  // --- Funzioni ---
-
-  const addChild = () => {
-    if (children.length >= maxChildren) return;
-    const newChild = {
-      id: Date.now(),
-      name: "Nome bambino",
-      emoji: "👦",
-    };
-    setChildren([...children, newChild]);
+  // Funzione per aggiungere bonus di 10 punti a un bambino
+  const handleBonus = (index) => {
+    const updated = [...children];
+    updated[index].punti += 10;
+    setChildren(updated);
   };
 
-  const removeChild = (id) => {
-    if (children.length <= 1) return;
-    setChildren(children.filter((c) => c.id !== id));
+  // Funzione per togliere 10 punti a un bambino (non scende sotto 0)
+  const handleMalus = (index) => {
+    const updated = [...children];
+    updated[index].punti = Math.max(0, updated[index].punti - 10);
+    setChildren(updated);
   };
 
-  const updateChild = (id, field, val) => {
-    setChildren(children.map(c => (c.id === id ? {...c, [field]: val} : c)));
+  // Reset totale punti bambini a 0
+  const resetPunti = () => {
+    const updated = [...children];
+    updated.forEach((c) => (c.punti = 0));
+    setChildren(updated);
   };
 
-  const assignTaskToChild = (task, moment, childId) => {
-    setTasksByChild(prev => {
-      const currTasks = prev[childId][moment];
-      const exists = currTasks.includes(task);
-      const newTasks = exists
-        ? currTasks.filter(t => t !== task)
-        : [...currTasks, task];
-      return {
-        ...prev,
-        [childId]: {
-          ...prev[childId],
-          [moment]: newTasks
-        }
-      };
-    });
+  // Funzione per spuntare / togliere spunta a un impegno e dare bonus se completati tutti
+  const toggleTaskDone = (childId, momento, task) => {
+    const updated = { ...taskCompletion };
+    const taskList = updated[childId][momento];
+    const index = taskList.indexOf(task);
+    if (index === -1) {
+      taskList.push(task);
 
-    // Rimuovi task completati se task rimosso
-    setCompletedTasks(prev => {
-      const doneTasks = prev[childId][moment];
-      const newDone = doneTasks.filter(t => t !== task);
-      return {
-        ...prev,
-        [childId]: {
-          ...prev[childId],
-          [moment]: newDone
-        }
-      };
-    });
-  };
-
-  const toggleTaskDone = (childId, moment, task) => {
-    setCompletedTasks(prev => {
-      const doneTasks = prev[childId][moment];
-      const isDone = doneTasks.includes(task);
-      let newDone;
-      if (isDone) {
-        newDone = doneTasks.filter(t => t !== task);
-      } else {
-        newDone = [...doneTasks, task];
+      // Verifico se tutti gli impegni sono completati per quel momento e bambino
+      if (
+        selectedTasks[childId][momento].length > 0 &&
+        selectedTasks[childId][momento].every(t => taskList.includes(t))
+      ) {
+        handleBonus(childId);
       }
-
-      // Se completati tutti i task assegnati in quel momento -> +10 punti
-      if (!isDone) {
-        const assigned = tasksByChild[childId][moment] || [];
-        if (newDone.length === assigned.length && assigned.length > 0) {
-          setPoints(old => ({
-            ...old,
-            [childId]: (old[childId] || 0) + 10
-          }));
-        }
-      }
-
-      return {
-        ...prev,
-        [childId]: {
-          ...prev[childId],
-          [moment]: newDone
-        }
-      };
-    });
+    } else {
+      taskList.splice(index, 1);
+    }
+    setTaskCompletion(updated);
   };
 
-  const addBonusPoint = (childId) => {
-    setPoints(old => ({
-      ...old,
-      [childId]: (old[childId] || 0) + 10,
-    }));
-  };
-
-  const subtractPoint = (childId) => {
-    setPoints(old => ({
-      ...old,
-      [childId]: Math.max((old[childId] || 0) - 10, 0),
-    }));
-  };
-
-  const addNewTask = () => {
-    if (!newTaskText.trim() || !newTaskEmoji.trim()) return;
-    setAssignedTasks(old => [
-      ...old,
-      { id: Date.now(), text: newTaskText.trim(), emoji: newTaskEmoji.trim() }
-    ]);
-    setNewTaskText("");
-    setNewTaskEmoji("");
-  };
-
-  // --- Render ---
-
-  return (
-    <div style={{ padding: 20, fontFamily: "Arial", maxWidth: 1100, margin: "auto" }}>
-      {page === "main" ? (
-        <>
-          <h1>Incarichi Bambini</h1>
-
-          <div style={{ display: "flex", gap: 15 }}>
-            {children.map(({ id, name, emoji }) => (
-              <div
-                key={id}
-                style={{
-                  flex: 1,
-                  border: "1px solid #ccc",
-                  borderRadius: 8,
-                  padding: 15,
-                  backgroundColor: "#f9f9f9",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 10, userSelect: "none" }}>
-                  <input
-                    type="text"
-                    maxLength={2}
-                    value={emoji}
-                    onChange={(e) => updateChild(id, "emoji", e.target.value)}
-                    style={{
-                      fontSize: 40,
-                      width: 50,
-                      textAlign: "center",
-                      border: "none",
-                      background: "transparent",
-                      outline: "none",
-                      cursor: "text",
-                    }}
-                    aria-label={`Emoji di ${name}`}
-                  />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => updateChild(id, "name", e.target.value)}
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      border: "none",
-                      background: "transparent",
-                      outline: "none",
-                      flex: 1,
-                      cursor: "text",
-                    }}
-                    aria-label={`Nome di ${name}`}
-                  />
-                  {children.length > 1 && (
-                    <button
-                      onClick={() => removeChild(id)}
-                      style={{ cursor: "pointer" }}
-                      title="Rimuovi bambino"
-                    >
-                      ❌
-                    </button>
-                  )}
-                </div>
-
-                <p><strong>Punti:</strong> {points[id] || 0}</p>
-
-                <div>
-                  <button onClick={() => addBonusPoint(id)}>⭐ Bonus +10</button>
-                  <button onClick={() => subtractPoint(id)} style={{ marginLeft: 10 }}>💸 Multa -10</button>
-                </div>
-
-                <div style={{ marginTop: 10 }}>
-                  {moments.map((moment) => (
-                    <button
-                      key={moment}
-                      style={{
-                        marginRight: 5,
-                        background: selectedMoment[id] === moment ? "#d4edda" : "#eee",
-                        border: "1px solid #999",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                      onClick={() => setSelectedMoment(old => ({ ...old, [id]: moment }))}
-                    >
-                      {moment === "mattino" ? "☀️" : moment === "pomeriggio" ? "🌤️" : "🌙"} {moment}
-                    </button>
-                  ))}
-                </div>
-
-                <ul style={{ marginTop: 10, minHeight: 50 }}>
-                  {(tasksByChild[id][selectedMoment[id]] || []).map((task, i) => (
-                    <li key={i}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={(completedTasks[id][selectedMoment[id]] || []).includes(task)}
-                          onChange={() => toggleTaskDone(id, selectedMoment[id], task)}
-                        />{" "}
-                        {task}
-                      </label>
-                    </li>
-                  ))}
-                  {selectedMoment[id] && tasksByChild[id][selectedMoment[id]].length === 0 && (
-                    <p style={{ fontStyle: "italic", color: "#777" }}>Nessun compito assegnato.</p>
-                  )}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {children.length < maxChildren && (
-            <button
-              onClick={addChild}
-              style={{
-                marginTop: 20,
-                padding: "10px 20px",
-                fontSize: 16,
-                cursor: "pointer",
-                borderRadius: 6,
-                border: "1px solid #007bff",
-                backgroundColor: "#007bff",
-                color: "white",
+  return page === "main" ? (
+    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+      <h1 style={{ textAlign: "center" }}>🌟 Bacheca Giornaliera</h1>
+      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 30 }}>
+        {children.map((child, idx) => (
+          <div key={idx} style={{ border: "1px solid #ccc", padding: 20, borderRadius: 10, width: "45%", background: "#f0f0f0" }}>
+            <input
+              type="text"
+              value={child.emoji}
+              onChange={(e) => {
+                const updated = [...children];
+                updated[idx].emoji = e.target.value;
+                setChildren(updated);
               }}
-            >
-              ➕ Aggiungi bambino
-            </button>
-          )}
-
-          <button
-            style={{ marginTop: 20, display: "block" }}
-            onClick={() => setPage("parent")}
-          >
-            👩‍👦 Area Genitore
-          </button>
-        </>
-      ) : (
-        <>
-          <h1>Area Genitore</h1>
-
-          <button onClick={() => setPage("main")} style={{ marginBottom: 20 }}>
-            ← Torna indietro
-          </button>
-
-          <h2>Compiti disponibili</h2>
-          <ul style={{ maxHeight: 150, overflowY: "auto", paddingLeft: 0, listStyle: "none" }}>
-            {assignedTasks.map(({ id, text, emoji }) => (
-              <li key={id} style={{ marginBottom: 8 }}>
-                <label style={{ cursor: "pointer" }}>
-                  {emoji} {text}
-                </label>
-              </li>
-            ))}
-          </ul>
-
-          <h3>Aggiungi nuovo compito</h3>
-          <div>
-            <input
-              type="text"
-              placeholder="Testo compito"
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              style={{ marginRight: 8, padding: 5 }}
+              style={{ fontSize: 30, width: 50, textAlign: "center", border: "none", background: "transparent" }}
             />
             <input
               type="text"
-              placeholder="Emoji"
-              maxLength={2}
-              value={newTaskEmoji}
-              onChange={(e) => setNewTaskEmoji(e.target.value)}
-              style={{ width: 40, marginRight: 8, padding: 5, textAlign: "center" }}
+              value={child.name}
+              onChange={(e) => {
+                const updated = [...children];
+                updated[idx].name = e.target.value;
+                setChildren(updated);
+              }}
+              style={{ fontWeight: "bold", fontSize: 20, border: "none", background: "transparent" }}
             />
-            <button onClick={addNewTask}>Aggiungi</button>
-          </div>
-
-          <h2>Assegna compiti ai bambini</h2>
-          {children.map(({ id, name, emoji }) => (
-            <div key={id} style={{ marginBottom: 20 }}>
-              <h3>
-                {emoji} {name}
-              </h3>
-              {moments.map((moment) => (
-                <div key={moment} style={{ marginBottom: 8 }}>
-                  <strong>
-                    {moment === "mattino" ? "☀️ Mattino" : moment === "pomeriggio" ? "🌤️ Pomeriggio" : "🌙 Sera"}
-                  </strong>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                    {assignedTasks.map(({ id: tid, text, emoji }) => {
-                      const assigned = tasksByChild[id][moment].includes(text);
-                      return (
-                        <button
-                          key={tid}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: assigned ? "#a2d5a2" : "#eee",
-                            border: "1px solid #999",
-                            borderRadius: 6,
-                            padding: "4px 10px",
-                            userSelect: "none",
-                          }}
-                          onClick={() => assignTaskToChild(text, moment, id)}
-                        >
-                          {emoji} {text}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div style={{ marginTop: 20 }}>
+              {MOMENTI.map((momento) => (
+                <div key={momento}>
+                  <strong>{momento}</strong>:
+                  <ul>
+                    {selectedTasks[idx][momento].length === 0 ? (
+                      <li>Nessun impegno</li>
+                    ) : (
+                      selectedTasks[idx][momento].map((task) => (
+                        <li key={task}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={taskCompletion[idx][momento].includes(task)}
+                              onChange={() => toggleTaskDone(idx, momento, task)}
+                            /> {EMOJI_TASKS[task] || "🔧"} {task}
+                          </label>
+                        </li>
+                      ))
+                    )}
+                  </ul>
                 </div>
               ))}
             </div>
-          ))}
-        </>
-      )}
+            <div style={{ marginTop: 20 }}>
+              <button onClick={() => handleBonus(idx)}>⭐ +10</button>
+              <button onClick={() => handleMalus(idx)} style={{ marginLeft: 10 }}>❌ -10</button>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <strong>Punti totali:</strong> {child.punti}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={resetPunti} style={{ marginTop: 30, padding: "10px 20px", backgroundColor: "#e53935", color: "white", borderRadius: 6, border: "none" }}>
+        🔁 Reset Punti
+      </button>
+      <div style={{ marginTop: 30, textAlign: "center" }}>
+        <button onClick={() => setPage("parent")} style={{ fontSize: 20, padding: 10, backgroundColor: "#2196f3", color: "white", borderRadius: 6, border: "none" }}>
+          👩‍👦 Area Genitori
+        </button>
+      </div>
+    </div>
+  ) : (
+    <ParentArea
+      goToMain={() => setPage("main")}
+      selectedTasks={selectedTasks}
+      setSelectedTasks={setSelectedTasks}
+    />
+  );
+}
+
+function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
+  const [customTask, setCustomTask] = useState("");
+
+  // Cambia l’impegno selezionato per quel bambino e momento
+  const toggleTask = (childId, momento, taskName) => {
+    const currentList = selectedTasks[childId][momento] || [];
+    const updated = { ...selectedTasks };
+    if (currentList.includes(taskName)) {
+      updated[childId][momento] = currentList.filter((t) => t !== taskName);
+    } else {
+      updated[childId][momento] = [...currentList, taskName];
+    }
+    setSelectedTasks(updated);
+  };
+
+  // Aggiungi un nuovo impegno personalizzato
+  const addCustomTask = () => {
+    if (customTask.trim() && !EMOJI_TASKS[customTask]) {
+      EMOJI_TASKS[customTask] = "🔧";
+      setCustomTask("");
+    }
+  };
+
+  // Reset di tutti gli impegni fissati
+  const resetImpegni = () => {
+    setSelectedTasks({
+      0: { Mattino: [], Pomeriggio: [], Sera: [] },
+      1: { Mattino: [], Pomeriggio: [], Sera: [] }
+    });
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>👩‍👧‍👦 Area Genitori - Imposta Impegni</h2>
+      {MOMENTI.map((momento) => (
+        <div key={momento} style={{ marginBottom: 20 }}>
+          <h3>{momento}</h3>
+
+          <div style={{ marginBottom: 10 }}>
+            <strong>Bambino 1</strong><br />
+            {Object.entries(EMOJI_TASKS).map(([task, emoji]) => (
+              <button
+                key={`0-${momento}-${task}`}
+                onClick={() => toggleTask(0, momento, task)}
+                style={{
+                  marginRight: 10,
+                  marginBottom: 5,
+                  padding: "5px 10px",
+                  fontWeight: selectedTasks[0][momento].includes(task) ? "bold" : "normal",
+                  backgroundColor: selectedTasks[0][momento].includes(task) ? "#c8e6c9" : "#eeeeee",
+                  border: "1px solid #ccc",
+                  borderRadius: 6,
+                  cursor: "pointer"
+                }}
+              >
+                {emoji} {task}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <strong>Bambino 2</strong><br />
+            {Object.entries(EMOJI_TASKS).map(([task, emoji]) => (
+              <button
+                key={`1-${momento}-${task}`}
+                onClick={() => toggleTask(1, momento, task)}
+                style={{
+                  marginRight: 10,
+                  marginBottom: 5,
+                  padding: "5px 10px",
+                  fontWeight: selectedTasks[1][momento].includes(task) ? "bold" : "normal",
+                  backgroundColor: selectedTasks[1][momento].includes(task) ? "#c8e6c9" : "#eeeeee",
+                  border: "1px solid #ccc",
+                  borderRadius: 6,
+                  cursor: "pointer"
+                }}
+              >
+                {emoji} {task}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div>
+        <input
+          type="text"
+          value={customTask}
+          onChange={(e) => setCustomTask(e.target.value)}
+          placeholder="Nuovo impegno"
+          style={{ padding: 5, width: "200px", marginRight: 10 }}
+        />
+        <button onClick={addCustomTask} style={{ padding: "5px 10px" }}>➕ Aggiungi</button>
+      </div>
+      <button
+        onClick={resetImpegni}
+        style={{ marginTop: 20, backgroundColor: "#f44336", color: "white", padding: 10, border: "none", borderRadius: 6, cursor: "pointer" }}
+      >
+        🔁 Reset Impegni
+      </button>
+      <div style={{ marginTop: 30 }}>
+        <button onClick={goToMain} style={{ padding: 10, cursor: "pointer" }}>🔙 Torna alla Bacheca</button>
+      </div>
     </div>
   );
 }
+
+const root = createRoot(document.getElementById("root"));
+root.render(<App />);
+
+export default App;
