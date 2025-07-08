@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
-const EMOJI_TASKS = {
+let EMOJI_TASKS = {
   "Apparecchiare": "🍽️",
   "Sparecchiare": "🧹",
   "Sistemare il bucato": "🧺",
@@ -15,7 +15,9 @@ const EMOJI_TASKS = {
   "Riordinare la sala": "🛋️",
   "Riordinare il bagno": "🚽",
   "Sistemare il giardino": "🌳",
-  "Stendere": "👕📌"
+  "Stendere": "👕📌",
+  "Lavarsi i denti": "🪥",
+  "Fare i compiti": "📚"
 };
 
 const MOMENTI = ["Mattino", "Pomeriggio", "Sera"];
@@ -23,25 +25,21 @@ const MOMENTI = ["Mattino", "Pomeriggio", "Sera"];
 function App() {
   const [page, setPage] = useState("main");
 
-  // Stato iniziale per i bambini, punti e nomi/emoji
   const [children, setChildren] = useState([
     { name: "Bambino 1", emoji: "👧", punti: 0 },
     { name: "Bambino 2", emoji: "👦", punti: 0 }
   ]);
 
-  // Impegni selezionati per bambino e momento
   const [selectedTasks, setSelectedTasks] = useState({
     0: { Mattino: [], Pomeriggio: [], Sera: [] },
     1: { Mattino: [], Pomeriggio: [], Sera: [] }
   });
 
-  // Impegni completati per bambino e momento
   const [taskCompletion, setTaskCompletion] = useState({
     0: { Mattino: [], Pomeriggio: [], Sera: [] },
     1: { Mattino: [], Pomeriggio: [], Sera: [] }
   });
 
-  // --- CARICAMENTO dati da localStorage all'avvio ---
   useEffect(() => {
     const savedChildren = localStorage.getItem("children");
     if (savedChildren) setChildren(JSON.parse(savedChildren));
@@ -53,43 +51,36 @@ function App() {
     if (savedTaskCompletion) setTaskCompletion(JSON.parse(savedTaskCompletion));
   }, []);
 
-  // --- SALVATAGGIO dati children su localStorage quando cambia ---
   useEffect(() => {
     localStorage.setItem("children", JSON.stringify(children));
   }, [children]);
 
-  // --- SALVATAGGIO dati selectedTasks su localStorage quando cambia ---
   useEffect(() => {
     localStorage.setItem("selectedTasks", JSON.stringify(selectedTasks));
   }, [selectedTasks]);
 
-  // --- SALVATAGGIO dati taskCompletion su localStorage quando cambia ---
   useEffect(() => {
     localStorage.setItem("taskCompletion", JSON.stringify(taskCompletion));
   }, [taskCompletion]);
 
-  // Funzione per aggiungere bonus di 10 punti a un bambino
   const handleBonus = (index) => {
     const updated = [...children];
     updated[index].punti += 10;
     setChildren(updated);
   };
 
-  // Funzione per togliere 10 punti a un bambino (non scende sotto 0)
   const handleMalus = (index) => {
     const updated = [...children];
     updated[index].punti = Math.max(0, updated[index].punti - 10);
     setChildren(updated);
   };
 
-  // Reset totale punti bambini a 0
   const resetPunti = () => {
     const updated = [...children];
     updated.forEach((c) => (c.punti = 0));
     setChildren(updated);
   };
 
-  // Funzione per spuntare / togliere spunta a un impegno e dare bonus se completati tutti
   const toggleTaskDone = (childId, momento, task) => {
     const updated = { ...taskCompletion };
     const taskList = updated[childId][momento];
@@ -97,7 +88,6 @@ function App() {
     if (index === -1) {
       taskList.push(task);
 
-      // Verifico se tutti gli impegni sono completati per quel momento e bambino
       if (
         selectedTasks[childId][momento].length > 0 &&
         selectedTasks[childId][momento].every(t => taskList.includes(t))
@@ -191,7 +181,6 @@ function App() {
 function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
   const [customTask, setCustomTask] = useState("");
 
-  // Cambia l’impegno selezionato per quel bambino e momento
   const toggleTask = (childId, momento, taskName) => {
     const currentList = selectedTasks[childId][momento] || [];
     const updated = { ...selectedTasks };
@@ -203,7 +192,6 @@ function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
     setSelectedTasks(updated);
   };
 
-  // Aggiungi un nuovo impegno personalizzato
   const addCustomTask = () => {
     if (customTask.trim() && !EMOJI_TASKS[customTask]) {
       EMOJI_TASKS[customTask] = "🔧";
@@ -211,7 +199,19 @@ function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
     }
   };
 
-  // Reset di tutti gli impegni fissati
+  const deleteTask = (taskName) => {
+    const { [taskName]: _, ...updatedTasks } = EMOJI_TASKS;
+    EMOJI_TASKS = updatedTasks;
+
+    const updated = { ...selectedTasks };
+    Object.keys(updated).forEach((childId) => {
+      MOMENTI.forEach((momento) => {
+        updated[childId][momento] = updated[childId][momento].filter((t) => t !== taskName);
+      });
+    });
+    setSelectedTasks(updated);
+  };
+
   const resetImpegni = () => {
     setSelectedTasks({
       0: { Mattino: [], Pomeriggio: [], Sera: [] },
@@ -225,50 +225,34 @@ function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
       {MOMENTI.map((momento) => (
         <div key={momento} style={{ marginBottom: 20 }}>
           <h3>{momento}</h3>
-
-          <div style={{ marginBottom: 10 }}>
-            <strong>Bambino 1</strong><br />
-            {Object.entries(EMOJI_TASKS).map(([task, emoji]) => (
-              <button
-                key={`0-${momento}-${task}`}
-                onClick={() => toggleTask(0, momento, task)}
-                style={{
-                  marginRight: 10,
-                  marginBottom: 5,
-                  padding: "5px 10px",
-                  fontWeight: selectedTasks[0][momento].includes(task) ? "bold" : "normal",
-                  backgroundColor: selectedTasks[0][momento].includes(task) ? "#c8e6c9" : "#eeeeee",
-                  border: "1px solid #ccc",
-                  borderRadius: 6,
-                  cursor: "pointer"
-                }}
-              >
-                {emoji} {task}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 10 }}>
-            <strong>Bambino 2</strong><br />
-            {Object.entries(EMOJI_TASKS).map(([task, emoji]) => (
-              <button
-                key={`1-${momento}-${task}`}
-                onClick={() => toggleTask(1, momento, task)}
-                style={{
-                  marginRight: 10,
-                  marginBottom: 5,
-                  padding: "5px 10px",
-                  fontWeight: selectedTasks[1][momento].includes(task) ? "bold" : "normal",
-                  backgroundColor: selectedTasks[1][momento].includes(task) ? "#c8e6c9" : "#eeeeee",
-                  border: "1px solid #ccc",
-                  borderRadius: 6,
-                  cursor: "pointer"
-                }}
-              >
-                {emoji} {task}
-              </button>
-            ))}
-          </div>
+          {[0, 1].map((childId) => (
+            <div key={childId} style={{ marginBottom: 10 }}>
+              <strong>{`Bambino ${childId + 1}`}</strong><br />
+              {Object.entries(EMOJI_TASKS).map(([task, emoji]) => (
+                <span key={`${childId}-${momento}-${task}`} style={{ display: "inline-block", marginRight: 10, marginBottom: 5 }}>
+                  <button
+                    onClick={() => toggleTask(childId, momento, task)}
+                    style={{
+                      padding: "5px 10px",
+                      fontWeight: selectedTasks[childId][momento].includes(task) ? "bold" : "normal",
+                      backgroundColor: selectedTasks[childId][momento].includes(task) ? "#c8e6c9" : "#eeeeee",
+                      border: "1px solid #ccc",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      marginRight: 5
+                    }}
+                  >
+                    {emoji} {task}
+                  </button>
+                  {emoji === "🔧" && (
+                    <button onClick={() => deleteTask(task)} style={{ color: "red", background: "transparent", border: "none", cursor: "pointer" }}>
+                      ❌
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
       ))}
       <div>
@@ -296,5 +280,4 @@ function ParentArea({ goToMain, selectedTasks, setSelectedTasks }) {
 
 const root = createRoot(document.getElementById("root"));
 root.render(<App />);
-
 export default App;
